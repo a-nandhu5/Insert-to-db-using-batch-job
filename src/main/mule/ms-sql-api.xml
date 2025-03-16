@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	
+	<flow name="ms-sql-apiFlow" doc:id="8c51ffa7-ea0a-4ca9-8bb4-093d5ed8eed2" >
+		<http:listener doc:name="Listener" doc:id="b3c4264d-9385-4489-89db-e31b6e5eb0dc" config-ref="HTTP_Listener_config" path="/loadCsv" allowedMethods="POST"/>
+		<!-- [STUDIO:"Insert"]<db:insert doc:name="Insert" doc:id="88bf6f38-d1c7-4bba-9a11-8596245d9fba" config-ref="Database_Config1">
+			<db:sql ><![CDATA[Insert into &#93;&#93;></db:sql>
+		</db:insert> [STUDIO] -->
+		<ee:transform doc:name="Transform Message" doc:id="719acb77-7840-4ab4-8b09-704eca4369f4">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+payload.parts.file.content map {
+	"productName": if ($."Phone Name" != null) ($."Phone Name")
+				   else if($.product_name != null) ($.product_name)
+				   else if($.name != null) ($.name)
+				   else if($."Product Name" != null) ($."Product Name")
+				   else "NA",
+	"price": if ($."Price (INR)" != null) ($."Price (INR)")
+			 else if($."Price (₹)" != null) ($."Price (₹)")
+			 else "NA",
+	"rating": if ($."Customer Rating" != null) ($."Customer Rating")
+			  else if($.Rating != null) ($.Rating)
+			  else if($.product_rating != null) ($.product_rating)
+			  else "NA",
+	"review": if($.Review != null) ($.Review)
+			  else if($.review_text != null) ($.review_text)
+			  else if($."Customer Review" != null) ($."Customer Review")
+			  else if($."reviews.text" != null) ($."reviews.text")
+			  else "NA",
+	"platform":if ($.manufacturer != null) ($.manufacturer)
+			   else if($.Platform != null) ($.Platform)
+			   else "Amazon"
+}]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="fileName"><![CDATA[%dw 2.0
+output application/json
+---
+payload.parts.file.headers."Content-Disposition".filename]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<batch:job jobName="batch-insert-to-db" doc:id="58fa0cfc-ecac-4374-8ca1-cda07a9667af" maxFailedRecords="500">
+			<batch:process-records >
+				<batch:step name="insertToDb" doc:id="87fa4552-1a64-44cc-8c9c-f87eceeea2d4" acceptPolicy="ALL">
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="2cb839ad-69c9-4b4f-98ed-07610a362844" size="50">
+						<db:bulk-insert doc:name="Bulk insert" doc:id="d45fb5ff-fb42-4a66-b753-da9f81dbde97" config-ref="Database_Config1">
+							<db:bulk-input-parameters ><![CDATA[#[(payload)]]]></db:bulk-input-parameters>
+							<db:sql ><![CDATA[${sql.insertQuery}]]></db:sql>
+						</db:bulk-insert>
+					</batch:aggregator>
+				</batch:step>
+				<batch:step name="InsertfailedRecords" doc:id="dc97de5d-648e-44db-bc83-22d1595a101c" acceptPolicy="ONLY_FAILURES">
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="c1db2ba8-1efa-4311-9c10-bb486903e775" streaming="true">
+						<db:bulk-insert doc:name="Bulk insert" doc:id="1544aebf-e90d-4ab3-b70f-5d9bef6dcc87" config-ref="Database_Config1">
+							<db:sql ><![CDATA[${sql.insertErrorQuery}]]></db:sql>
+						</db:bulk-insert>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="6299bb06-a84f-43e8-940e-0f72c9fc6ca4" message="#[%dw 2.0 output application/json --- payload]"/>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>

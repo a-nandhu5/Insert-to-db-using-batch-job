@@ -1,0 +1,14 @@
+http:
+  timeout: "30000"
+  port: "8081"
+
+db:
+  host: "my-sql-server-shopnexus.mysql.database.azure.com"
+  port: "3306"
+  user: "admin1"
+  password: "Password@123"
+  database: "flipreviews"
+  
+sql:
+  insertQuery: "Insert into master_table(product_name,price,rating,review,platform) values (:productName,:price,:rating,:review,:platform);"
+  insertErrorQuery: "Insert into master_error_table(product_name,price,rating,review,platform) values (:productName,:price,:rating,:review,:platform);"

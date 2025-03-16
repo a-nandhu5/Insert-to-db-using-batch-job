@@ -3,11 +3,11 @@ http:
   port: "8081"
 
 db:
-  host: "my-sql-server-shopnexus.mysql.database.azure.com"
+  host: "host name"
   port: "3306"
-  user: "admin1"
-  password: "Password@123"
-  database: "flipreviews"
+  user: "user name"
+  password: "password"
+  database: "database name"
   
 sql:
   insertQuery: "Insert into master_table(product_name,price,rating,review,platform) values (:productName,:price,:rating,:review,:platform);"
